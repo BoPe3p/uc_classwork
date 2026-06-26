@@ -1,0 +1,13 @@
+### Python ###
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+tempCodeRunnerFile.py
+tempCodeRunnerFile.python
+T1_IIC2233_2024_2.pdf
+data/
+utils.pyc
+tests_publicos/
+README_inicial.md

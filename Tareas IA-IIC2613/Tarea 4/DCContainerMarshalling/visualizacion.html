@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Container Bay Visualizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-primary: #0b1120;
+  --bg-secondary: #131b2e;
+  --bg-card: #1a2340;
+  --bg-card-hover: #1f2b4d;
+  --border: #2a3a5c;
+  --text-primary: #e2e8f0;
+  --text-secondary: #8896b3;
+  --text-muted: #576583;
+  --accent: #38bdf8;
+  --accent-dim: #1e6fa0;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --green: #22c55e;
+  --font-display: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-display);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#app {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+header h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--accent), #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.badge {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.badge.amber { border-color: var(--amber); color: var(--amber); }
+
+.canvas-wrap {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: relative;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+canvas { display: block; cursor: default; margin: 0 auto; }
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.controls button {
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  user-select: none;
+}
+.controls button:hover { background: var(--bg-card-hover); border-color: var(--accent-dim); }
+.controls button:active { transform: scale(0.96); }
+.controls button:disabled { opacity: 0.35; cursor: not-allowed; }
+.controls button.play-btn {
+  min-width: 6rem;
+  justify-content: center;
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: #e2f8ff;
+  font-weight: 700;
+}
+.controls button.play-btn:hover { background: var(--accent); color: #0b1120; }
+
+.timeline-wrap { flex: 1; display: flex; align-items: center; gap: 0.6rem; }
+
+input[type="range"] {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 5px;
+  background: var(--border);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-card);
+  cursor: grab;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-card);
+  cursor: grab;
+}
+
+.step-label {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  min-width: 6rem;
+  text-align: right;
+}
+
+.info-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+.info-card {
+  flex: 1;
+  min-width: 160px;
+  padding: 0.75rem 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.info-card .label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+}
+.info-card .value {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+.info-card .value.move    { color: var(--accent); }
+.info-card .value.drop    { color: var(--amber); }
+.info-card .value.sorted  { color: var(--green); }
+.info-card .value.unsorted { color: var(--red); }
+
+.legend { display: flex; gap: 1rem; flex-wrap: wrap; padding: 0.5rem 0; }
+.legend-item { display: flex; align-items: center; gap: 0.35rem; font-size: 0.72rem; color: var(--text-secondary); }
+.legend-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.15); }
+
+.kbd-hints {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 0.25rem;
+}
+.kbd-hints kbd {
+  font-family: var(--font-mono);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.6rem;
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>🏗️ Container Bay Visualizer</h1>
+    <div style="display:flex;gap:0.5rem;align-items:center">
+      <span class="badge" id="modeBadge">C-PMP</span>
+      <span class="badge" id="configBadge">—</span>
+    </div>
+  </header>
+
+  <div class="canvas-wrap">
+    <canvas id="bay"></canvas>
+  </div>
+
+  <div class="controls">
+    <button id="btnFirst" title="Inicio">⏮</button>
+    <button id="btnPrev" title="Anterior (←)">←</button>
+    <button id="btnPlay" class="play-btn" title="Play/Pause (Space)">▶ Play</button>
+    <button id="btnNext" title="Siguiente (→)">→</button>
+    <button id="btnLast" title="Final">⏭</button>
+    <div class="timeline-wrap">
+      <input type="range" id="timeline" min="0" max="0" value="0">
+      <span class="step-label" id="stepLabel">0 / 0</span>
+    </div>
+  </div>
+
+  <div class="info-row">
+    <div class="info-card">
+      <div class="label">Acción</div>
+      <div class="value" id="infoAction">Estado inicial</div>
+    </div>
+    <div class="info-card">
+      <div class="label">Estado bahía</div>
+      <div class="value" id="infoBayState">—</div>
+    </div>
+    <div class="info-card">
+      <div class="label">Movimientos</div>
+      <div class="value" id="infoMoves">0</div>
+    </div>
+    <div class="info-card" id="cardDrops" style="display:none">
+      <div class="label">Drops</div>
+      <div class="value" id="infoDrops">0</div>
+    </div>
+  </div>
+
+  <div class="legend" id="legend"></div>
+  <div class="kbd-hints">
+    <kbd>←</kbd> <kbd>→</kbd> navegar &nbsp;·&nbsp; <kbd>Space</kbd> play/pause &nbsp;·&nbsp; <kbd>Home</kbd> inicio &nbsp;·&nbsp; <kbd>End</kbd> final
+  </div>
+</div>
+
+<script>
+// Data injected by visualizer.py — DO NOT EDIT this line
+const DATA = {"config": {"pilas": ["b1", "b2", "b3"], "altura_max": 3, "modo": "C-PMP+D4"}, "prioridades": {"4": 4, "7": 7, "3": 3, "2": 2, "5": 5, "6": 6, "1": 1}, "pasos": [{"t": 0, "posiciones": {"3": {"pila": "b2", "altura": 1}, "4": {"pila": "b1", "altura": 1}, "2": {"pila": "b1", "altura": 2}}, "accion": null, "disponibles": [], "pendientes": [["5", 2], ["1", 3], ["7", 4], ["6", 5]]}, {"t": 1, "posiciones": {"3": {"pila": "b2", "altura": 1}, "4": {"pila": "b1", "altura": 1}, "2": {"pila": "b1", "altura": 2}}, "accion": null, "disponibles": [], "pendientes": [["5", 2], ["1", 3], ["7", 4], ["6", 5]]}, {"t": 2, "posiciones": {"4": {"pila": "b1", "altura": 1}, "2": {"pila": "b1", "altura": 2}, "3": {"pila": "b1", "altura": 3}}, "accion": {"tipo": "move", "contenedor": "3", "origen": "b2", "destino": "b1"}, "disponibles": ["5"], "pendientes": [["1", 3], ["7", 4], ["6", 5]]}, {"t": 3, "posiciones": {"5": {"pila": "b3", "altura": 1}, "4": {"pila": "b1", "altura": 1}, "2": {"pila": "b1", "altura": 2}, "3": {"pila": "b1", "altura": 3}}, "accion": {"tipo": "drop", "contenedor": "5", "destino": "b3"}, "disponibles": ["1"], "pendientes": [["7", 4], ["6", 5]]}, {"t": 4, "posiciones": {"5": {"pila": "b3", "altura": 1}, "1": {"pila": "b2", "altura": 1}, "4": {"pila": "b1", "altura": 1}, "2": {"pila": "b1", "altura": 2}, "3": {"pila": "b1", "altura": 3}}, "accion": {"tipo": "drop", "contenedor": "1", "destino": "b2"}, "disponibles": ["7"], "pendientes": [["6", 5]]}, {"t": 5, "posiciones": {"1": {"pila": "b2", "altura": 1}, "5": {"pila": "b2", "altura": 2}, "4": {"pila": "b1", "altura": 1}, "2": {"pila": "b1", "altura": 2}, "3": {"pila": "b1", "altura": 3}}, "accion": {"tipo": "move", "contenedor": "5", "origen": "b3", "destino": "b2"}, "disponibles": ["7", "6"], "pendientes": []}, {"t": 6, "posiciones": {"7": {"pila": "b3", "altura": 1}, "1": {"pila": "b2", "altura": 1}, "5": {"pila": "b2", "altura": 2}, "4": {"pila": "b1", "altura": 1}, "2": {"pila": "b1", "altura": 2}, "3": {"pila": "b1", "altura": 3}}, "accion": {"tipo": "drop", "contenedor": "7", "destino": "b3"}, "disponibles": ["6"], "pendientes": []}, {"t": 7, "posiciones": {"7": {"pila": "b3", "altura": 1}, "5": {"pila": "b3", "altura": 2}, "1": {"pila": "b2", "altura": 1}, "4": {"pila": "b1", "altura": 1}, "2": {"pila": "b1", "altura": 2}, "3": {"pila": "b1", "altura": 3}}, "accion": {"tipo": "move", "contenedor": "5", "origen": "b2", "destino": "b3"}, "disponibles": ["6"], "pendientes": []}, {"t": 8, "posiciones": {"7": {"pila": "b3", "altura": 1}, "5": {"pila": "b3", "altura": 2}, "1": {"pila": "b3", "altura": 3}, "4": {"pila": "b1", "altura": 1}, "2": {"pila": "b1", "altura": 2}, "3": {"pila": "b1", "altura": 3}}, "accion": {"tipo": "move", "contenedor": "1", "origen": "b2", "destino": "b3"}, "disponibles": ["6"], "pendientes": []}, {"t": 9, "posiciones": {"7": {"pila": "b3", "altura": 1}, "5": {"pila": "b3", "altura": 2}, "1": {"pila": "b3", "altura": 3}, "6": {"pila": "b2", "altura": 1}, "4": {"pila": "b1", "altura": 1}, "2": {"pila": "b1", "altura": 2}, "3": {"pila": "b1", "altura": 3}}, "accion": {"tipo": "drop", "contenedor": "6", "destino": "b2"}, "disponibles": [], "pendientes": []}, {"t": 10, "posiciones": {"7": {"pila": "b3", "altura": 1}, "5": {"pila": "b3", "altura": 2}, "1": {"pila": "b3", "altura": 3}, "6": {"pila": "b2", "altura": 1}, "3": {"pila": "b2", "altura": 2}, "4": {"pila": "b1", "altura": 1}, "2": {"pila": "b1", "altura": 2}}, "accion": {"tipo": "move", "contenedor": "3", "origen": "b1", "destino": "b2"}, "disponibles": [], "pendientes": []}]};
+
+(function() {
+'use strict';
+
+// ─── Layout constants ────────────────────────────────────────────────
+const BOX_W         = 34;
+const BOX_H         = 34;
+const DEPTH_X       = 12;
+const DEPTH_Y       = 20;
+const STACK_GAP     = 5;
+const MARGIN_TOP    = 30;
+const MARGIN_LEFT   = 60;
+const MARGIN_RIGHT  = 30;
+const MARGIN_BOTTOM = 50;
+const GROUND_H              = 12;
+const ARRIVALS_LEFT_GAP     = 44;  // horizontal gap from bay right edge to arrivals row
+const ARRIVALS_H_GAP        = 10;  // horizontal gap between containers in arrivals row
+const ARRIVALS_RIGHT_MARGIN = 30;  // right margin after arrivals row
+const ANIM_MS       = 700;
+const PLAY_INTERVAL = 1300;
+
+const COLORS = {
+  containerFront: '#336291', containerSide: '#2a5278', containerTop: '#4a8bc2',
+  availFront:     '#b45309', availSide:    '#92400e', availTop:    '#f59e0b',
+  pendingFront:   '#2e3a50', pendingSide:  '#243045', pendingTop:  '#4a5e7a',
+  ground:  '#1c2841', groundTop: '#253553', groundFront: '#151e33',
+  stackLabel: '#5a6e94', textOnBox: '#ffffff',
+  canvasBg: '#0e1525', gridLine: 'rgba(42,58,92,0.3)',
+};
+
+// ─── Data ────────────────────────────────────────────────────────────
+const config      = DATA.config;
+const pilas       = config.pilas;      // ["b1","b2","b3"]
+const alturaMax   = config.altura_max;
+const prioridades = DATA.prioridades;
+const pasos       = DATA.pasos;
+const numPilas    = pilas.length;
+const hasArrivals = config.modo === 'C-PMP+D4';
+
+const pilaIndex = {};
+pilas.forEach((p, i) => { pilaIndex[p] = i; });
+
+// ─── Canvas ──────────────────────────────────────────────────────────
+const canvas = document.getElementById('bay');
+const ctx    = canvas.getContext('2d');
+const dpr    = window.devicePixelRatio || 1;
+
+// ─── Animation state ─────────────────────────────────────────────────
+let currentStep   = 0;
+let playing       = false;
+let playTimer     = null;
+let animating     = false;
+let animStartTime = 0;
+let animContainer = null;
+let animFrom      = null;
+let animTo        = null;
+let animType      = null;  // 'move' | 'drop'
+
+// ─── Position helpers ────────────────────────────────────────────────
+function getContainerPos(pilaName, altura) {
+  const idx = pilaIndex[pilaName];
+  const x = MARGIN_LEFT + idx * (BOX_W + STACK_GAP);
+  const bayBottom = MARGIN_TOP + alturaMax * BOX_H + DEPTH_Y;
+  return { x, y: bayBottom - altura * BOX_H };
+}
+
+// Arrivals are laid out horizontally to the right of the bay at ground level, left = soonest arriving.
+function getArrivalPos(index) {
+  const bayRightEdge = MARGIN_LEFT + numPilas * (BOX_W + STACK_GAP) - STACK_GAP + DEPTH_X;
+  const x = bayRightEdge + ARRIVALS_LEFT_GAP + index * (BOX_W + DEPTH_X + ARRIVALS_H_GAP);
+  const y = MARGIN_TOP + alturaMax * BOX_H + DEPTH_Y; // same ground level as bay
+  return { x, y };
+}
+
+function calcCanvasSize() {
+  const bayW = numPilas * (BOX_W + STACK_GAP) - STACK_GAP;
+  let totalW = MARGIN_LEFT + bayW + DEPTH_X + MARGIN_RIGHT;
+  let totalH = MARGIN_TOP + alturaMax * BOX_H + DEPTH_Y + GROUND_H + MARGIN_BOTTOM;
+
+  if (hasArrivals) {
+    // Arrivals row extends to the right at ground level — no extra height needed
+    const maxSlots = Math.max(0, ...pasos.map(
+      p => (p.disponibles || []).length + (p.pendientes || []).length
+    ));
+    const arrivalsW = ARRIVALS_LEFT_GAP + maxSlots * (BOX_W + DEPTH_X + ARRIVALS_H_GAP) + ARRIVALS_RIGHT_MARGIN;
+    totalW = MARGIN_LEFT + bayW + DEPTH_X + arrivalsW;
+  }
+  return { w: totalW, h: totalH };
+}
+
+function resizeCanvas() {
+  const size = calcCanvasSize();
+  const containerW = canvas.parentElement.parentElement.clientWidth;
+  // When arrivals are present, scale is based on the bay width alone so the bay
+  // stays readable and the arrivals row simply extends to the right (scrollable).
+  const bayLogicalW = MARGIN_LEFT + numPilas * (BOX_W + STACK_GAP) - STACK_GAP + DEPTH_X + MARGIN_RIGHT;
+  const scaleSource = hasArrivals ? bayLogicalW : size.w;
+  const scale = (containerW * 0.48) / scaleSource;
+  const dW = Math.floor(size.w * scale);
+  const dH = Math.floor(size.h * scale);
+  canvas.width  = Math.floor(dW * dpr);
+  canvas.height = Math.floor(dH * dpr);
+  canvas.style.width  = dW + 'px';
+  canvas.style.height = dH + 'px';
+  ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+}
+
+// ─── Drawing primitives ──────────────────────────────────────────────
+function drawBox(x, y, colors, label, alpha) {
+  if (alpha === undefined) alpha = 1;
+  ctx.globalAlpha = alpha;
+  const w = BOX_W, h = BOX_H, dx = DEPTH_X, dy = DEPTH_Y;
+
+  ctx.fillStyle = colors.front;
+  ctx.beginPath(); ctx.rect(x, y, w, h); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+
+  ctx.fillStyle = colors.top;
+  ctx.beginPath();
+  ctx.moveTo(x, y); ctx.lineTo(x+dx, y-dy); ctx.lineTo(x+w+dx, y-dy); ctx.lineTo(x+w, y);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle = colors.side;
+  ctx.beginPath();
+  ctx.moveTo(x+w, y); ctx.lineTo(x+w+dx, y-dy); ctx.lineTo(x+w+dx, y+h-dy); ctx.lineTo(x+w, y+h);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)'; ctx.lineWidth = 0.5;
+  for (let i = 1; i < 4; i++) {
+    const rx = x + (w * i / 4);
+    ctx.beginPath(); ctx.moveTo(rx, y+2); ctx.lineTo(rx, y+h-2); ctx.stroke();
+  }
+
+  ctx.font = '700 12px var(--font-mono), monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = COLORS.textOnBox;
+  ctx.fillText(String(label), x + w/2, y + h/2 + 1);
+  ctx.globalAlpha = 1;
+}
+
+function drawGround() {
+  const totalW = numPilas * (BOX_W + STACK_GAP) - STACK_GAP + 20;
+  const sx = MARGIN_LEFT - 10;
+  const bayBottom = MARGIN_TOP + alturaMax * BOX_H + DEPTH_Y;
+
+  ctx.fillStyle = COLORS.groundTop;
+  ctx.beginPath();
+  ctx.moveTo(sx, bayBottom); ctx.lineTo(sx+DEPTH_X+5, bayBottom-DEPTH_Y-3);
+  ctx.lineTo(sx+totalW+DEPTH_X+5, bayBottom-DEPTH_Y-3); ctx.lineTo(sx+totalW, bayBottom);
+  ctx.closePath(); ctx.fill();
+
+  ctx.fillStyle = COLORS.groundFront;
+  ctx.beginPath(); ctx.rect(sx, bayBottom, totalW, GROUND_H); ctx.fill();
+
+  ctx.fillStyle = COLORS.ground;
+  ctx.beginPath();
+  ctx.moveTo(sx+totalW, bayBottom); ctx.lineTo(sx+totalW+DEPTH_X+5, bayBottom-DEPTH_Y-3);
+  ctx.lineTo(sx+totalW+DEPTH_X+5, bayBottom+GROUND_H-DEPTH_Y-3); ctx.lineTo(sx+totalW, bayBottom+GROUND_H);
+  ctx.closePath(); ctx.fill();
+
+  ctx.font = '500 11px var(--font-display), sans-serif';
+  ctx.textAlign = 'center'; ctx.fillStyle = COLORS.stackLabel;
+  for (let i = 0; i < numPilas; i++) {
+    const x = MARGIN_LEFT + i * (BOX_W + STACK_GAP) + BOX_W / 2;
+    ctx.fillText(pilas[i], x, bayBottom + GROUND_H + 18);
+  }
+
+  ctx.font = '400 9px var(--font-mono), monospace'; ctx.textAlign = 'right';
+  for (let h = 1; h <= alturaMax; h++) {
+    const y = bayBottom - h * BOX_H + BOX_H / 2;
+    ctx.fillStyle = 'rgba(90,110,148,0.4)';
+    ctx.fillText(String(h), MARGIN_LEFT - 12, y + 4);
+    ctx.strokeStyle = COLORS.gridLine; ctx.lineWidth = 0.5; ctx.setLineDash([3, 4]);
+    ctx.beginPath();
+    ctx.moveTo(MARGIN_LEFT - 5, y);
+    ctx.lineTo(MARGIN_LEFT + totalW - 10, y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawArrivalsArea(step) {
+  if (!hasArrivals) return;
+  const s = pasos[step];
+  const disponibles = s.disponibles || [];
+  const pendientes  = s.pendientes  || [];
+
+  const bayRightEdge = MARGIN_LEFT + numPilas * (BOX_W + STACK_GAP) - STACK_GAP + DEPTH_X;
+  const sepX  = bayRightEdge + Math.floor(ARRIVALS_LEFT_GAP / 2);
+  const bayTopY    = MARGIN_TOP - 10;
+  const bayBottomY = MARGIN_TOP + alturaMax * BOX_H + DEPTH_Y + GROUND_H;
+
+  // Vertical separator line between bay and arrivals row
+  ctx.strokeStyle = 'rgba(42,58,92,0.5)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+  ctx.beginPath();
+  ctx.moveTo(sepX, bayTopY);
+  ctx.lineTo(sepX, bayBottomY);
+  ctx.stroke(); ctx.setLineDash([]);
+
+  // "Llegadas" label above the first arrival slot
+  const arrivalsStartX = bayRightEdge + ARRIVALS_LEFT_GAP;
+  ctx.font = '500 10px var(--font-display), sans-serif';
+  ctx.textAlign = 'left'; ctx.fillStyle = COLORS.stackLabel;
+  ctx.fillText('Llegadas →', arrivalsStartX, MARGIN_TOP - 14);
+
+  // Available containers (arrived, waiting for drop) — amber, leftmost in row
+  disponibles.forEach(function(cId, i) {
+    if (animating && animContainer === cId) return;
+    const pos = getArrivalPos(i);
+    const pri = prioridades[cId] !== undefined ? prioridades[cId] : cId;
+    drawBox(pos.x, pos.y,
+      { front: COLORS.availFront, side: COLORS.availSide, top: COLORS.availTop },
+      pri, 1.0);
+  });
+
+  // Pending containers (not yet arrived) — grey, continuing the row
+  const offset = disponibles.length;
+  pendientes.forEach(function(item, i) {
+    const cId = item[0], ta = item[1];
+    const pos = getArrivalPos(offset + i);
+    const pri = prioridades[cId] !== undefined ? prioridades[cId] : cId;
+    drawBox(pos.x, pos.y,
+      { front: COLORS.pendingFront, side: COLORS.pendingSide, top: COLORS.pendingTop },
+      pri, 0.55);
+    // Arrival time badge above the container (above the isometric top face)
+    ctx.font = '600 8px var(--font-mono), monospace';
+    ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(180,180,200,0.8)';
+    ctx.fillText('T=' + String(ta), pos.x + BOX_W / 2, pos.y - DEPTH_Y - 4);
+  });
+}
+
+// ─── Render ──────────────────────────────────────────────────────────
+function getOpacity(altura, stackHeight) {
+  if (stackHeight <= 1) return 1.0;
+  return 0.4 + 0.6 * ((altura - 1) / (stackHeight - 1));
+}
+
+function getStackHeight(step, pilaName) {
+  const pos = pasos[step].posiciones;
+  let max = 0;
+  for (const cId in pos) {
+    if (pos[cId].pila === pilaName && pos[cId].altura > max) max = pos[cId].altura;
+  }
+  return max;
+}
+
+function render(timestamp) {
+  const size = calcCanvasSize();
+  ctx.clearRect(0, 0, size.w, size.h);
+  ctx.fillStyle = COLORS.canvasBg; ctx.fillRect(0, 0, size.w, size.h);
+
+  drawGround();
+  drawArrivalsArea(currentStep);
+
+  const pos = pasos[currentStep].posiciones;
+  const toDraw = [];
+  for (const cId in pos) {
+    const p = pos[cId];
+    toDraw.push({ id: cId, pila: p.pila, altura: p.altura,
+                  stackH: getStackHeight(currentStep, p.pila) });
+  }
+  toDraw.sort(function(a, b) {
+    const di = pilaIndex[a.pila] - pilaIndex[b.pila];
+    return di !== 0 ? di : a.altura - b.altura;
+  });
+
+  for (let i = 0; i < toDraw.length; i++) {
+    const c = toDraw[i];
+    if (animating && animContainer === c.id) continue;
+    const sp  = getContainerPos(c.pila, c.altura);
+    const pri = prioridades[c.id] !== undefined ? prioridades[c.id] : c.id;
+    drawBox(sp.x, sp.y,
+      { front: COLORS.containerFront, side: COLORS.containerSide, top: COLORS.containerTop },
+      pri, getOpacity(c.altura, c.stackH));
+  }
+
+  if (animating && animContainer) {
+    const elapsed  = timestamp - animStartTime;
+    const progress = Math.min(1, elapsed / ANIM_MS);
+    const eased    = easeInOutCubic(progress);
+    const pri      = prioridades[animContainer] !== undefined ? prioridades[animContainer] : animContainer;
+    const colors   = { front: COLORS.containerFront, side: COLORS.containerSide, top: COLORS.containerTop };
+    let cx, cy;
+
+    if (animType === 'drop') {
+      // Parabolic arc from arrivals column (right) into the bay (left)
+      const arcH = Math.max(40, Math.abs(animFrom.x - animTo.x) * 0.25);
+      cx = animFrom.x + (animTo.x - animFrom.x) * eased;
+      cy = animFrom.y + (animTo.y - animFrom.y) * eased - arcH * 4 * eased * (1 - eased);
+    } else {
+      // 3-phase move: lift → translate → drop
+      const liftH = 60;
+      if (eased < 0.3) {
+        const t = eased / 0.3;
+        cx = animFrom.x; cy = animFrom.y - liftH * easeOutCubic(t);
+      } else if (eased < 0.7) {
+        const t = (eased - 0.3) / 0.4;
+        cx = animFrom.x + (animTo.x - animFrom.x) * easeInOutCubic(t);
+        cy = animFrom.y - liftH;
+      } else {
+        const t = (eased - 0.7) / 0.3;
+        cx = animTo.x;
+        cy = (animFrom.y - liftH) + (animTo.y - animFrom.y + liftH) * easeInCubic(t);
+      }
+    }
+    drawBox(cx, cy, colors, pri, 1.0);
+
+    if (progress < 1) requestAnimationFrame(render);
+    else { animating = false; animContainer = null; animType = null; }
+  }
+}
+
+function easeInOutCubic(t) { return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
+function easeOutCubic(t)   { return 1 - Math.pow(1-t, 3); }
+function easeInCubic(t)    { return t * t * t; }
+
+// ─── Navigation ──────────────────────────────────────────────────────
+function goToStep(step, animate) {
+  if (step < 0 || step >= pasos.length) return;
+  const prev = currentStep;
+  currentStep = step;
+  if (animate && prev !== step) {
+    const action = pasos[step].accion;
+    if (action) startAnimation(action, prev);
+  }
+  updateUI();
+  requestAnimationFrame(render);
+}
+
+function startAnimation(action, fromStep) {
+  animContainer = action.contenedor;
+  animType      = action.tipo;
+
+  if (action.tipo === 'move') {
+    const prevPos = pasos[fromStep].posiciones[action.contenedor];
+    animFrom = prevPos ? getContainerPos(prevPos.pila, prevPos.altura) : { x: 0, y: 0 };
+    const curPos = pasos[currentStep].posiciones[action.contenedor];
+    animTo = curPos ? getContainerPos(curPos.pila, curPos.altura) : animFrom;
+
+  } else if (action.tipo === 'drop') {
+    // Start from the container's position in the arrivals row at the previous step
+    const prevDisp = pasos[fromStep].disponibles || [];
+    const idx = prevDisp.indexOf(action.contenedor);
+    animFrom = getArrivalPos(idx >= 0 ? idx : 0);
+    const curPos = pasos[currentStep].posiciones[action.contenedor];
+    animTo = curPos ? getContainerPos(curPos.pila, curPos.altura) : animFrom;
+  }
+
+  animating = true;
+  animStartTime = performance.now();
+}
+
+// ─── Bay ordering check ──────────────────────────────────────────────
+function isBayOrdered(step) {
+  const pos = pasos[step].posiciones;
+  const byPilaH = {};
+  for (const cId in pos) {
+    const pila = pos[cId].pila, h = pos[cId].altura;
+    if (!byPilaH[pila]) byPilaH[pila] = {};
+    byPilaH[pila][h] = cId;
+  }
+  for (const pila in byPilaH) {
+    const heights = byPilaH[pila];
+    for (const hStr in heights) {
+      const h = Number(hStr);
+      const above = heights[h + 1];
+      const below = heights[h];
+      if (above && below) {
+        const pA = prioridades[above] !== undefined ? prioridades[above] : parseInt(above, 10);
+        const pB = prioridades[below] !== undefined ? prioridades[below] : parseInt(below, 10);
+        if (pA > pB) return false;
+      }
+    }
+  }
+  return true;
+}
+
+// ─── UI ──────────────────────────────────────────────────────────────
+const timeline     = document.getElementById('timeline');
+const stepLabel    = document.getElementById('stepLabel');
+const infoAction   = document.getElementById('infoAction');
+const infoBayState = document.getElementById('infoBayState');
+const infoMoves    = document.getElementById('infoMoves');
+const infoDrops    = document.getElementById('infoDrops');
+const btnFirst     = document.getElementById('btnFirst');
+const btnPrev      = document.getElementById('btnPrev');
+const btnPlay      = document.getElementById('btnPlay');
+const btnNext      = document.getElementById('btnNext');
+const btnLast      = document.getElementById('btnLast');
+
+function countActions(upToStep) {
+  let moves = 0, drops = 0;
+  for (let i = 0; i <= upToStep; i++) {
+    const a = pasos[i].accion;
+    if (!a) continue;
+    if (a.tipo === 'move') moves++;
+    if (a.tipo === 'drop') drops++;
+  }
+  return { moves, drops };
+}
+
+function formatAction(action) {
+  if (!action) return 'Estado inicial';
+  const p = prioridades[action.contenedor] !== undefined ? prioridades[action.contenedor] : action.contenedor;
+  if (action.tipo === 'move') return 'Mover [' + p + ']: ' + action.origen + ' → ' + action.destino;
+  if (action.tipo === 'drop') return 'Drop  [' + p + '] → ' + action.destino;
+  return '—';
+}
+
+function updateUI() {
+  const step = pasos[currentStep];
+  const counts  = countActions(currentStep);
+  const ordered = isBayOrdered(currentStep);
+
+  timeline.value = String(currentStep);
+  stepLabel.textContent = 'T=' + step.t + '  (' + currentStep + '/' + (pasos.length - 1) + ')';
+
+  infoAction.textContent = formatAction(step.accion);
+  infoAction.className   = 'value' + (step.accion ? ' ' + step.accion.tipo : '');
+
+  infoBayState.textContent = ordered ? 'Ordenada ✓' : 'Desordenada';
+  infoBayState.className   = 'value ' + (ordered ? 'sorted' : 'unsorted');
+
+  infoMoves.textContent = String(counts.moves);
+  infoDrops.textContent = String(counts.drops);
+
+  btnFirst.disabled = currentStep === 0;
+  btnPrev.disabled  = currentStep === 0;
+  btnNext.disabled  = currentStep >= pasos.length - 1;
+  btnLast.disabled  = currentStep >= pasos.length - 1;
+  btnPlay.textContent = playing ? '⏸ Pause' : '▶ Play';
+}
+
+// ─── Controls ────────────────────────────────────────────────────────
+btnFirst.addEventListener('click', function() { stopPlay(); goToStep(0); });
+btnPrev.addEventListener('click',  function() { stopPlay(); goToStep(currentStep - 1, true); });
+btnNext.addEventListener('click',  function() { stopPlay(); goToStep(currentStep + 1, true); });
+btnLast.addEventListener('click',  function() { stopPlay(); goToStep(pasos.length - 1); });
+btnPlay.addEventListener('click', togglePlay);
+timeline.addEventListener('input', function(e) { stopPlay(); goToStep(Number(e.target.value)); });
+
+function togglePlay() { if (playing) stopPlay(); else startPlay(); }
+
+function startPlay() {
+  if (currentStep >= pasos.length - 1) goToStep(0);
+  playing = true; updateUI();
+  playTimer = setInterval(function() {
+    if (currentStep >= pasos.length - 1) { stopPlay(); return; }
+    if (!animating) goToStep(currentStep + 1, true);
+  }, PLAY_INTERVAL);
+}
+
+function stopPlay() {
+  playing = false;
+  if (playTimer) { clearInterval(playTimer); playTimer = null; }
+  updateUI();
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'ArrowLeft')  { stopPlay(); goToStep(currentStep - 1, true); e.preventDefault(); }
+  if (e.key === 'ArrowRight') { stopPlay(); goToStep(currentStep + 1, true); e.preventDefault(); }
+  if (e.key === ' ')          { togglePlay(); e.preventDefault(); }
+  if (e.key === 'Home')       { stopPlay(); goToStep(0); e.preventDefault(); }
+  if (e.key === 'End')        { stopPlay(); goToStep(pasos.length - 1); e.preventDefault(); }
+});
+
+// ─── Legend (DOM methods, no innerHTML) ──────────────────────────────
+function buildLegend() {
+  const items = [{ color: COLORS.containerTop, label: 'Contenedor' }];
+  if (hasArrivals) {
+    items.push({ color: COLORS.availTop,   label: 'En espera (drop)' });
+    items.push({ color: COLORS.pendingTop, label: 'Por llegar' });
+  }
+  const legend = document.getElementById('legend');
+  while (legend.firstChild) legend.removeChild(legend.firstChild);
+  items.forEach(function(it) {
+    const wrap   = document.createElement('div');  wrap.className = 'legend-item';
+    const swatch = document.createElement('div');  swatch.className = 'legend-swatch';
+    swatch.style.background = it.color;
+    const text = document.createElement('span');   text.textContent = it.label;
+    wrap.appendChild(swatch);
+    wrap.appendChild(text);
+    legend.appendChild(wrap);
+  });
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────
+function init() {
+  if (typeof DATA === 'string') {
+    const err = document.createElement('p');
+    err.textContent = 'Error: datos no encontrados. Ejecuta visualizer.py primero.';
+    err.style.cssText = 'color:var(--red);padding:2rem;';
+    const app = document.getElementById('app');
+    while (app.firstChild) app.removeChild(app.firstChild);
+    app.appendChild(err);
+    return;
+  }
+
+  document.getElementById('modeBadge').textContent = config.modo;
+  if (hasArrivals) document.getElementById('modeBadge').classList.add('amber');
+  document.getElementById('configBadge').textContent = numPilas + ' pilas · H=' + alturaMax;
+
+  if (hasArrivals) document.getElementById('cardDrops').style.display = '';
+
+  timeline.max = String(pasos.length - 1);
+  buildLegend();
+  resizeCanvas();
+  updateUI();
+  requestAnimationFrame(render);
+}
+
+window.addEventListener('resize', function() { resizeCanvas(); requestAnimationFrame(render); });
+init();
+
+})();
+</script>
+</body>
+</html>

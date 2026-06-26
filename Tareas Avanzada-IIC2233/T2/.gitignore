@@ -1,0 +1,12 @@
+### Python ###
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+tempCodeRunnerFile.py
+tempCodeRunnerFile.python
+Enunciado.pdf
+data/
+README_inicial.md
+prueba.py 
